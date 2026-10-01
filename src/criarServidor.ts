@@ -12,12 +12,13 @@ type Arquivo = {
     fonte: string;
     autor: string;
     corpo: string;
-    checagem?: { pergunta: string; resposta: string };
+    palavras: string[];
+    checagem?: { pergunta: string; respostas: string[] };
 };
 
 type Duvida = { texto: string; horario: string };
 
-type ChecagemGuardada = { pergunta: string; resposta: string; arquivo: string };
+type ChecagemGuardada = { pergunta: string; respostas: string[]; arquivo: string };
 
 const duvidas: Duvida[] = [];
 const checagens = new Map<string, ChecagemGuardada>();
@@ -49,7 +50,40 @@ function lerCampo(bloco: string, campo: string): string | undefined {
     return linha?.slice(campo.length + 1).trim();
 }
 
-function separar(markdown: string): { meta: string; corpo: string; checagem?: { pergunta: string; resposta: string } } {
+function lerCampos(bloco: string, campo: string): string[] {
+    return bloco
+        .split('\n')
+        .filter(item => item.startsWith(`${campo}:`))
+        .map(item => item.slice(campo.length + 1).trim())
+        .filter(Boolean);
+}
+
+export function respostaCerta(resposta: string, gabaritos: string[]): boolean {
+    const dada = normalizar(resposta);
+    const temNegacao = /\bnao\b|\bnunca\b/.test(dada);
+    return gabaritos.some(gabarito => {
+        const esperada = normalizar(gabarito);
+        if (!esperada) return false;
+        const gabaritoTemNegacao = /\bnao\b|\bnunca\b/.test(esperada);
+        if (temNegacao && !gabaritoTemNegacao) return false;
+        if (dada === esperada || dada.includes(esperada)) return true;
+        const termos = termosDaPergunta(gabarito);
+        return termos.length > 0 && termos.every(termo => dada.includes(termo));
+    });
+}
+
+export function temaDaDuvida(arquivos: Pick<Arquivo, 'tema' | 'corpo' | 'palavras'>[], texto: string): string {
+    const termos = termosDaPergunta(texto);
+    let melhor = { tema: 'geral', acertos: 0 };
+    for (const arquivo of arquivos) {
+        const visivel = normalizar(`${arquivo.tema}\n${arquivo.palavras.join(' ')}\n${arquivo.corpo}`);
+        const acertos = termos.filter(termo => visivel.includes(termo)).length;
+        if (acertos > melhor.acertos) melhor = { tema: arquivo.tema, acertos };
+    }
+    return melhor.acertos > 0 ? melhor.tema : 'geral';
+}
+
+function separar(markdown: string): { meta: string; corpo: string; checagem?: { pergunta: string; respostas: string[] } } {
     const textoNormalizado = markdown.replace(/\r\n/g, '\n');
     const fim = textoNormalizado.startsWith('---\n') ? textoNormalizado.indexOf('\n---\n', 4) : -1;
     const meta = fim === -1 ? '' : textoNormalizado.slice(4, fim);
@@ -60,8 +94,8 @@ function separar(markdown: string): { meta: string; corpo: string; checagem?: { 
     const bloco = corpo.slice(inicio + ':::checagem'.length, fechamento);
     corpo = `${corpo.slice(0, inicio)}${corpo.slice(fechamento + 3)}`.trim();
     const pergunta = lerCampo(bloco, 'pergunta');
-    const resposta = lerCampo(bloco, 'resposta');
-    return { meta, corpo, checagem: pergunta && resposta ? { pergunta, resposta } : undefined };
+    const respostas = lerCampos(bloco, 'resposta');
+    return { meta, corpo, checagem: pergunta && respostas.length > 0 ? { pergunta, respostas } : undefined };
 }
 
 async function lerPasta(raiz: string, pasta: Arquivo['pasta']): Promise<Arquivo[]> {
@@ -80,7 +114,8 @@ async function lerPasta(raiz: string, pasta: Arquivo['pasta']): Promise<Arquivo[
         const fonte = lerCampo(meta, 'fonte');
         const autor = lerCampo(meta, 'autor');
         if (!tema || !fonte || !autor) continue;
-        arquivos.push({ pasta, nome, tema, fonte, autor, corpo, checagem });
+        const palavras = (lerCampo(meta, 'palavras') ?? '').split(',').map(item => item.trim()).filter(Boolean);
+        arquivos.push({ pasta, nome, tema, fonte, autor, corpo, palavras, checagem });
     }
     return arquivos;
 }
@@ -178,7 +213,7 @@ export function criarServidor(pastaConteudo: string): McpServer {
             const { arquivos } = await carregar(raiz);
             const grupos = new Map<string, Duvida[]>();
             for (const duvida of duvidas) {
-                const tema = arquivos.find(arquivo => normalizar(duvida.texto).includes(normalizar(arquivo.tema)))?.tema ?? 'geral';
+                const tema = temaDaDuvida(arquivos, duvida.texto);
                 grupos.set(tema, [...(grupos.get(tema) ?? []), duvida]);
             }
             const saida = [...grupos.entries()].map(([tema, itens]) => `${tema}\n${itens.map(item => `- ${item.horario} ${item.texto}`).join('\n')}`).join('\n\n');
@@ -200,9 +235,7 @@ export function criarServidor(pastaConteudo: string): McpServer {
             if (id && resposta !== undefined) {
                 const guardada = checagens.get(id);
                 if (!guardada) return erro('Essa checagem expirou. Peça outra pergunta.');
-                const esperada = normalizar(guardada.resposta);
-                const dada = normalizar(resposta);
-                const certo = dada === esperada || dada.includes(esperada);
+                const certo = respostaCerta(resposta, guardada.respostas);
                 return texto(certo ? 'certo' : `errado\nReleia ${guardada.arquivo}`);
             }
             const { arquivos } = await carregar(raiz);
@@ -211,7 +244,7 @@ export function criarServidor(pastaConteudo: string): McpServer {
             const candidata = comPergunta.find(arquivo => !usadas.has(arquivo.checagem?.pergunta)) ?? comPergunta[0];
             if (!candidata?.checagem) return erro('O acervo não tem pergunta de checagem.');
             const novoId = randomUUID();
-            checagens.set(novoId, { ...candidata.checagem, arquivo: `${candidata.pasta}/${candidata.nome}` });
+            checagens.set(novoId, { pergunta: candidata.checagem.pergunta, respostas: candidata.checagem.respostas, arquivo: `${candidata.pasta}/${candidata.nome}` });
             return texto(`${novoId}\n${candidata.checagem.pergunta}`);
         }
     );

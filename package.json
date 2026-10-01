@@ -9,7 +9,10 @@
   "scripts": {
     "start": "node --experimental-strip-types src/index.ts",
     "tunel": "node --experimental-strip-types scripts/tunel.ts",
-    "listar": "node --experimental-strip-types scripts/listar.ts"
+    "tunel:fixo": "node --experimental-strip-types scripts/tunel-fixo.ts",
+    "listar": "node --experimental-strip-types scripts/listar.ts",
+    "prova": "node --experimental-strip-types scripts/prova-ajustes.ts",
+    "carga": "node --experimental-strip-types scripts/carga.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "2.1.0",

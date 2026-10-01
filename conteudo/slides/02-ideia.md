@@ -2,6 +2,7 @@
 tema: ideia
 fonte: conteúdo-base do seminário, 29/09/2026
 autor: Nicolas
+palavras: tomada, aparelho, padrao
 ---
 
 O MCP resolve o problema N vezes M com um padrão único de conexão, no espírito de uma tomada. Em vez de cada chat integrar cada ferramenta do zero, o servidor é a tomada e cada chat é um aparelho que encaixa nela.

@@ -2,6 +2,7 @@
 tema: arquitetura
 fonte: conteúdo-base do seminário, 29/09/2026
 autor: Nicolas
+palavras: host, cliente, stdio, http
 ---
 
 Há três papéis. O host é o aplicativo onde a pessoa conversa. O cliente fala o protocolo. O servidor oferece o acervo e as tools.

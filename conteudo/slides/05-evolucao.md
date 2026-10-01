@@ -2,6 +2,7 @@
 tema: evolucao
 fonte: https://blog.modelcontextprotocol.io
 autor: Nicolas
+palavras: _meta, julho, sessao, initialize, oauth
 ---
 
 O protocolo foi lançado em novembro de 2024 e passou a ser adotado pelas grandes empresas. A revisão de 28/07/2026 tirou o estado do núcleo. Não há sessão, nem handshake de initialize, nem retomada de stream. Cada pedido carrega versão e capacidades no campo _meta. O efeito é escalar como uma API HTTP comum.

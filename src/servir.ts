@@ -15,15 +15,17 @@ type Opcoes = {
 export function servir(opcoes: Opcoes = {}): void {
     const pasta = opcoes.pasta ?? process.env.CONTEUDO ?? path.join(process.cwd(), 'conteudo');
     const porta = opcoes.porta ?? Number(process.env.PORT ?? 3000);
-    const extras = opcoes.hostsExtras ?? (process.env.HOSTS ?? '').split(',').map(item => item.trim()).filter(Boolean);
-    const hosts = ['localhost', '127.0.0.1', '[::1]', ...extras];
-
     const handler = createMcpHandler(() => criarServidor(pasta));
     const nodeHandler = toNodeHandler(handler);
-    const validateHost = hostHeaderValidation(hosts);
-    const validateOrigin = originValidation(hosts);
 
     createServer((req, res) => {
+        const extras = [
+            ...(opcoes.hostsExtras ?? []),
+            ...(process.env.HOSTS ?? '').split(',').map(item => item.trim()).filter(Boolean)
+        ];
+        const hosts = ['localhost', '127.0.0.1', '[::1]', ...extras];
+        const validateHost = hostHeaderValidation(hosts);
+        const validateOrigin = originValidation(hosts);
         const inicio = Date.now();
         res.on('finish', () => {
             const ip = req.headers['cf-connecting-ip'] ?? req.socket.remoteAddress ?? '-';

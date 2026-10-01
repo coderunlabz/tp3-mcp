@@ -1,6 +1,6 @@
 ---
 tema: evolucao
-fonte: https://www.4sysops.com
+fonte: https://4sysops.com/archives/2026-07-28-model-context-protocol-mcp-stateless-multi-round-trip-routable-headers-authorization-hardening/
 autor: Nicolas
 ---
 
