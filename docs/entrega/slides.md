@@ -130,7 +130,7 @@ Ver o roteiro da demo abaixo. Na tela fica o terminal com o log do servidor, uma
 - "Uma tool pode agir fora do chat. Conectar é confiar no servidor."
 - "Chamada demais custa tempo e dinheiro."
 - "O protocolo não impõe as regras de segurança; quem implementa precisa construir."
-- "Nesta demo, não testamos: rede da UTFPR, todos os chats da turma, 30 conexões ao mesmo tempo."
+- "Nesta demo, não testamos: rede da UTFPR, todos os chats da turma, carga pelo túnel (só 20 conexões, no computador local)."
 
 **Fala**
 A especificação trata tools como execução de código arbitrário e pede consentimento da pessoa. Isso não é detalhe: se você conecta um servidor, está confiando nele. O nosso só lê arquivos de uma pasta e grava uma dúvida em memória. Diga claramente o que não foi testado, em vez de esperar a pergunta.
@@ -164,6 +164,7 @@ Pré-requisito: túnel aberto numa janela própria, endereço conferido em `url-
 Dicas de ensaio:
 - Antes de usar atalhos (prompts) na frente da turma, confirme que o chat deles aparece. Se não aparecer, peça em palavras: o resultado é o mesmo.
 - O agrupamento por assunto depende da dúvida conter uma palavra do tema. Combine dois ou três exemplos antes.
+- A checagem recusa respostas certas com palavras a mais: "o modelo" vale, "o modelo de linguagem decide" não. Ensaie a resposta curta.
 - O servidor não guarda dados ao reiniciar: não reinicie nada durante a demo.
 
 ## Plano B
