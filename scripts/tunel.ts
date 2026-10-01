@@ -1,10 +1,13 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { servir } from '../src/servir.ts';
 
 const porta = Number(process.env.PORT ?? 3000);
 const maxTentativas = Number(process.env.TUNEL_TENTATIVAS ?? 8);
+const pausaMs = Number(process.env.TUNEL_PAUSA_MS ?? 8000);
+const arquivoUrl = path.join(process.cwd(), 'url-atual.txt');
 const executavel = [
     'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe',
     'C:\\Program Files\\cloudflared\\cloudflared.exe'
@@ -17,7 +20,10 @@ servir({ porta });
 let atual: ChildProcess | undefined;
 let hostnameAtual: string | undefined;
 let tentativas = 0;
+let jaTentou = false;
 let encerrando = false;
+let falhasSeguidas = 0;
+let cicloAndando = false;
 
 function destaque(linha: string): void {
     console.log('');
@@ -25,6 +31,12 @@ function destaque(linha: string): void {
     console.log(linha);
     console.log('========');
     console.log('');
+}
+
+function gravarUrl(hostname: string): void {
+    const url = `https://${hostname}/mcp`;
+    writeFileSync(arquivoUrl, `${url}\n`, 'utf8');
+    console.log(`url-atual.txt <- ${url}`);
 }
 
 function subirCloudflared(): ChildProcess {
@@ -51,37 +63,46 @@ async function umaSubida(): Promise<string> {
     proc.removeAllListeners('exit');
     proc.on('exit', codigo => {
         if (encerrando) return;
-        destaque(`${new Date().toISOString()} TUNEL CAIU (codigo ${codigo}). Reiniciando. URL rapida pode mudar.`);
+        destaque(`${new Date().toISOString()} TUNEL CAIU (codigo ${codigo}). Reiniciando em ${pausaMs / 1000}s. URL rapida pode mudar.`);
         void ciclo();
     });
     return hostname;
 }
 
 async function ciclo(): Promise<void> {
-    if (encerrando) return;
-    tentativas += 1;
-    if (tentativas > maxTentativas) {
-        destaque(`${new Date().toISOString()} TUNEL: esgotou ${maxTentativas} tentativas. Ficou so o localhost.`);
-        return;
-    }
+    if (encerrando || cicloAndando) return;
+    cicloAndando = true;
     try {
-        const hostname = await umaSubida();
-        tentativas = 0;
-        process.env.HOSTS = hostname;
-        if (hostnameAtual && hostnameAtual !== hostname) {
-            destaque(`URL MUDOU. Antes: https://${hostnameAtual}/mcp  Agora: https://${hostname}/mcp`);
-        } else {
-            destaque(`publico em https://${hostname}/mcp`);
+        if (jaTentou) await new Promise(ok => setTimeout(ok, pausaMs));
+        jaTentou = true;
+        tentativas += 1;
+        if (tentativas > maxTentativas) {
+            destaque(`${new Date().toISOString()} TUNEL: esgotou ${maxTentativas} tentativas. Ficou so o localhost.`);
+            return;
         }
-        hostnameAtual = hostname;
-    } catch (erro) {
-        destaque(`${new Date().toISOString()} TUNEL falhou: ${erro instanceof Error ? erro.message : erro}`);
-        await new Promise(ok => setTimeout(ok, 4000));
-        await ciclo();
+        try {
+            const hostname = await umaSubida();
+            tentativas = 0;
+            falhasSeguidas = 0;
+            process.env.HOSTS = hostname;
+            gravarUrl(hostname);
+            if (hostnameAtual && hostnameAtual !== hostname) {
+                destaque(`URL MUDOU. Antes: https://${hostnameAtual}/mcp  Agora: https://${hostname}/mcp`);
+            } else {
+                destaque(`publico em https://${hostname}/mcp`);
+            }
+            hostnameAtual = hostname;
+        } catch (erro) {
+            destaque(`${new Date().toISOString()} TUNEL falhou: ${erro instanceof Error ? erro.message : erro}`);
+            cicloAndando = false;
+            await ciclo();
+            return;
+        }
+    } finally {
+        cicloAndando = false;
     }
 }
 
-let falhasSeguidas = 0;
 setInterval(async () => {
     if (!hostnameAtual || encerrando) return;
     try {
@@ -90,8 +111,11 @@ setInterval(async () => {
         falhasSeguidas = 0;
     } catch (erro) {
         falhasSeguidas += 1;
+        destaque(`${new Date().toISOString()} checagem publica falhou ${falhasSeguidas} vezes (${erro instanceof Error ? erro.message : erro}).`);
         if (falhasSeguidas >= 3) {
-            destaque(`${new Date().toISOString()} checagem publica falhou ${falhasSeguidas} vezes (${erro instanceof Error ? erro.message : erro}).`);
+            falhasSeguidas = 0;
+            destaque(`${new Date().toISOString()} checagem falhou 3 vezes. Matando cloudflared para subir de novo.`);
+            atual?.kill();
         }
     }
 }, 60_000);

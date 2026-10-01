@@ -7,12 +7,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node --experimental-strip-types src/index.ts",
-    "tunel": "node --experimental-strip-types scripts/tunel.ts",
-    "tunel:fixo": "node --experimental-strip-types scripts/tunel-fixo.ts",
-    "listar": "node --experimental-strip-types scripts/listar.ts",
-    "prova": "node --experimental-strip-types scripts/prova-ajustes.ts",
-    "carga": "node --experimental-strip-types scripts/carga.ts"
+    "start": "node --env-file-if-exists=.env --experimental-strip-types src/index.ts",
+    "tunel": "node --env-file-if-exists=.env --experimental-strip-types scripts/tunel.ts",
+    "listar": "node --env-file-if-exists=.env --experimental-strip-types scripts/listar.ts",
+    "verificar": "node --env-file-if-exists=.env --experimental-strip-types scripts/verificar.ts",
+    "prova": "node --env-file-if-exists=.env --experimental-strip-types scripts/prova-ajustes.ts",
+    "carga": "node --env-file-if-exists=.env --experimental-strip-types scripts/carga.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "2.1.0",

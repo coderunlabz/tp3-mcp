@@ -1,28 +1,30 @@
 # Estado — 01/10/2026
 
-Repo privado `coderunlabz/tp3-mcp`, branch `main`. Seminário 06/10/2026. Slides e manual de apresentação ainda não começaram.
+Repo privado `coderunlabz/tp3-mcp`, branch `main`. Seminário 06/10/2026. Numeração igual a `docs/pipeline/`.
 
-## Fechado
+## Pipeline
 
-- P0 pacotes e esqueleto
-- P1 servidor local Streamable HTTP
-- P2 conteúdo e tools
-- P3 prompts/atalhos
-- P4 túnel rápido Cloudflare (http2; QUIC bloqueado na rede testada)
-- P5 demo com Claude/Perplexity (auth None)
+- P0 especificação (spec 2026-07-28, SDK v2)
+- P1 contrato
+- P2 servidor local
+- P3 conteúdo
+- P4 sala e checagem
+- P5 cliente real
+- P6 provas (`docs/pipeline/p6.md`)
 
-## Ajustes desta leva (código)
+## Ajustes depois do P5
 
-- Checagem: várias linhas `resposta:`; recusa negação (`nao`/`nunca`) se o gabarito não tiver negação; gabarito do slide 01 em palavras-chave
-- Agrupamento: corpo do markdown + `palavras:` no frontmatter; empate/zero → `geral`
-- Túnel rápido: aviso de queda, reinício com limite, URL nova em destaque, checagem pública a cada 60 s
-- `npm run tunel:fixo` preparado; hostname ainda sem conta
-- Docs alinhados ao código único; VPS retirada do plano
-- `docs/fontes/` para o slide 05
+- Checagem: várias `resposta:`; recusa negação; um termo útil exige o gabarito inteiro
+- Agrupamento pelo corpo + `palavras:`
+- Dúvida igual à última em 5 s não duplica
+- Túnel rápido: aviso, pausa, reinício, `url-atual.txt`; checagem 3 falhas mata o `cloudflared`
+- Log MCP sem IP; `LOG_ARQUIVO` opcional
+- Decisão 01/10: VPS fora; túnel **rápido** (sem conta, sem domínio)
 
 ## Não feito de propósito
 
-- Conta Cloudflare/ngrok
+- Conta Cloudflare / túnel nomeado / serviço Windows
 - Abrir o repo
-- Checagens nos slides 02, 03 e 05 (aguardam ok do texto)
+- Checagens nos slides 02, 03 e 05
 - Persistência de dúvidas em disco
+- Tool de painel de clientes

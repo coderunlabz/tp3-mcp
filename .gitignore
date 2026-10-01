@@ -4,3 +4,5 @@ tunel.log
 tunel.out.log
 .env
 *.log
+chamadas.jsonl
+url-atual.txt

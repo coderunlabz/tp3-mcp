@@ -60,15 +60,19 @@ function lerCampos(bloco: string, campo: string): string[] {
 
 export function respostaCerta(resposta: string, gabaritos: string[]): boolean {
     const dada = normalizar(resposta);
+    const dados = termosDaPergunta(resposta);
     const temNegacao = /\bnao\b|\bnunca\b/.test(dada);
     return gabaritos.some(gabarito => {
         const esperada = normalizar(gabarito);
         if (!esperada) return false;
         const gabaritoTemNegacao = /\bnao\b|\bnunca\b/.test(esperada);
         if (temNegacao && !gabaritoTemNegacao) return false;
+        const termos = esperada.split(' ').filter(termo => termo.length >= 1 && !palavrasVazias.has(termo));
+        if (termos.length <= 1) {
+            return dados.length === termos.length && termos.every(termo => dados.includes(termo));
+        }
         if (dada === esperada || dada.includes(esperada)) return true;
-        const termos = termosDaPergunta(gabarito);
-        return termos.length > 0 && termos.every(termo => dada.includes(termo));
+        return termos.every(termo => dada.includes(termo));
     });
 }
 
@@ -197,7 +201,12 @@ export function criarServidor(pastaConteudo: string): McpServer {
         },
         async ({ texto: duvida }) => {
             if (!duvida.trim()) return erro('Escreva a dúvida em uma frase, sem nome.');
-            duvidas.push({ texto: duvida.trim(), horario: new Date().toISOString() });
+            const agora = Date.now();
+            const ultima = duvidas.at(-1);
+            if (ultima && ultima.texto === duvida.trim() && agora - Date.parse(ultima.horario) < 5000) {
+                return texto('Dúvida já registrada.');
+            }
+            duvidas.push({ texto: duvida.trim(), horario: new Date(agora).toISOString() });
             return texto('Dúvida registrada sem identificação.');
         }
     );
