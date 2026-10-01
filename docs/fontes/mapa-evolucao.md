@@ -3,7 +3,7 @@
 Cada afirmação do slide de evolução (`conteudo/slides/05-evolucao.md`) e dos slides de arquitetura e primitivos, ligada à fonte que a sustenta. Conferido em 01/10/2026. Onde a fonte não sustenta por inteiro, o texto diz o que ajustar.
 
 - Resultado: tudo do slide 05 está sustentado; três pontos pedem ajuste de redação (marcados com AJUSTE).
-- A fonte 4sysops (17/07/2026) não foi achada; o assunto SDK v2 foi coberto pelo blog oficial e pelo repositório do SDK.
+- A fonte 4sysops tem arquivo próprio (`4sysops-sdk-v2.md`), mas só o trecho indexado foi lido; o assunto SDK v2 está sustentado pelo blog oficial.
 - Seções: Evolução, Arquitetura e primitivos, Fora dos slides mas úteis, Fontes lidas.
 
 ## Evolução (slide 05)
@@ -20,7 +20,7 @@ Cada afirmação do slide de evolução (`conteudo/slides/05-evolucao.md`) e dos
 | Efeito: escala como API HTTP comum | Confirmado: qualquer pedido cai em qualquer instância atrás de um balanceador simples, sem armazenamento de sessão | `blog-2026-07-28-release.md`, `workos-2026-09-16.md` |
 | MCP Apps e Tasks ficam fora do núcleo | Confirmado. AJUSTE: Tasks saiu do núcleo nesta revisão (era experimental na anterior); MCP Apps já era extensão. O que esta revisão fez foi formalizar o mecanismo de extensões | `blog-2026-05-21-release-candidate.md` |
 | Autorização mais perto de OAuth | Confirmado: validação do parâmetro `iss` (RFC 9207), credencial presa ao emissor, e registro dinâmico de cliente depreciado em favor de documentos de metadados do cliente | `spec-2026-07-28.md` (changelog) |
-| SDK TypeScript v2 em pacotes, só ESM | Confirmado: `@modelcontextprotocol/server` e `@modelcontextprotocol/client`, mais adaptadores; ESM apenas; Node 20+. A v1 segue com correções por pelo menos 6 meses | `blog-2026-06-29-sdk-betas.md` |
+| SDK TypeScript v2 em pacotes, só ESM | Confirmado: `@modelcontextprotocol/server` e `@modelcontextprotocol/client`, mais adaptadores; ESM apenas; Node 20+. A v1 segue com correções por pelo menos 6 meses | `blog-2026-06-29-sdk-betas.md`, `4sysops-sdk-v2.md` |
 
 ## Arquitetura e primitivos (slides 03 e 04)
 
@@ -44,7 +44,7 @@ Cada afirmação do slide de evolução (`conteudo/slides/05-evolucao.md`) e dos
 
 ## Fontes lidas
 
-Todas acessadas em 01/10/2026.
+Todas acessadas em 01/10/2026. O índice com os arquivos válidos e os duplicados está em `README.md`.
 
 - `spec-2026-07-28.md`
 - `blog-2026-07-28-release.md`
@@ -52,4 +52,4 @@ Todas acessadas em 01/10/2026.
 - `blog-2026-06-29-sdk-betas.md`
 - `workos-2026-09-16.md`
 - `anthropic-2024-11-25-lancamento.md`
-- Não achada: 4sysops, 17/07/2026. O arquivo `conteudo/referencias/4sysops-sdk.md` continua no acervo; sem URL exata do artigo, sugiro trocá-lo por `blog-2026-06-29-sdk-betas.md` (decisão do Nicolas).
+- `4sysops-sdk-v2.md` (só o trecho indexado na busca; a página bloqueou o acesso)
