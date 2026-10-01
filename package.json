@@ -1,0 +1,24 @@
+{
+  "name": "acervo-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types src/index.ts",
+    "tunel": "node --experimental-strip-types scripts/tunel.ts",
+    "listar": "node --experimental-strip-types scripts/listar.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/node": "2.1.0",
+    "@modelcontextprotocol/server": "2.2.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.2.0",
+    "@types/node": "24.5.2",
+    "typescript": "5.9.2"
+  }
+}
