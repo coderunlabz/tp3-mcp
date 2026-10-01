@@ -52,4 +52,4 @@ Todas acessadas em 01/10/2026.
 - `blog-2026-06-29-sdk-betas.md`
 - `workos-2026-09-16.md`
 - `anthropic-2024-11-25-lancamento.md`
-- Não achada: 4sysops, 17/07/2026. Removida do acervo (`conteudo/referencias/4sysops-sdk.md`) até existir URL exata.
+- Não achada: 4sysops, 17/07/2026. O arquivo `conteudo/referencias/4sysops-sdk.md` continua no acervo; sem URL exata do artigo, sugiro trocá-lo por `blog-2026-06-29-sdk-betas.md` (decisão do Nicolas).
