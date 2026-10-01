@@ -1,6 +1,6 @@
 # Fontes da evolução do MCP (fora do acervo)
 
-Índice único da pasta. Os resumos são datados de 01/10/2026 e não são transcrição integral. A conferranking de cada afirmação dos slides está em `mapa-evolucao.md`; comece por ele.
+Índice único da pasta. Os resumos são datados de 01/10/2026 e não são transcrição integral. A conferência de cada afirmação dos slides está em `mapa-evolucao.md`; comece por ele.
 
 - Seções: Arquivos que valem, Duplicados, Cuidados.
 
