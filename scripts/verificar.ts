@@ -1,10 +1,9 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 
 const esperadas = [
-    'checar_entendimento',
+    'ajudar_ideia_mcp',
     'consultar_acervo',
     'registrar_duvida',
-    'sobre_este_acervo',
     'ver_duvidas_da_sala'
 ];
 

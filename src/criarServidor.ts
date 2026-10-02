@@ -1,9 +1,16 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, appendFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/server';
+import {
+    acceptedContent,
+    CLIENT_CAPABILITIES_META_KEY,
+    inputRequired,
+    McpServer,
+    ResourceTemplate
+} from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
+
+import { htmlConsultar, htmlDuvida, MIME_APP } from './janelas.ts';
 
 type Arquivo = {
     pasta: 'slides' | 'manual' | 'referencias';
@@ -12,94 +19,35 @@ type Arquivo = {
     fonte: string;
     autor: string;
     corpo: string;
-    palavras: string[];
-    checagem?: { pergunta: string; respostas: string[] };
 };
 
-type Duvida = { texto: string; horario: string };
-
-type ChecagemGuardada = { pergunta: string; respostas: string[]; arquivo: string };
-
-const duvidas: Duvida[] = [];
-const checagens = new Map<string, ChecagemGuardada>();
+export type OpcoesServidor = {
+    apresentar?: boolean;
+    era?: 'legacy' | 'modern';
+};
 
 const PROMPTS = [
     'comece-aqui',
     'explica-como-se-eu-tivesse-5-anos',
     'mostra-o-slide',
     'me-guia-na-instalacao',
-    'prepara-minha-prova',
     'onde-posso-ler-mais'
 ];
 
 const texto = (valor: string) => ({ content: [{ type: 'text' as const, text: valor }] });
-
 const erro = (valor: string) => ({ isError: true as const, ...texto(valor) });
-
-function normalizar(valor: string): string {
-    return valor
-        .normalize('NFD')
-        .replace(/\p{M}+/gu, '')
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, ' ');
-}
 
 function lerCampo(bloco: string, campo: string): string | undefined {
     const linha = bloco.split('\n').find(item => item.startsWith(`${campo}:`));
     return linha?.slice(campo.length + 1).trim();
 }
 
-function lerCampos(bloco: string, campo: string): string[] {
-    return bloco
-        .split('\n')
-        .filter(item => item.startsWith(`${campo}:`))
-        .map(item => item.slice(campo.length + 1).trim())
-        .filter(Boolean);
-}
-
-export function respostaCerta(resposta: string, gabaritos: string[]): boolean {
-    const dada = normalizar(resposta);
-    const dados = termosDaPergunta(resposta);
-    const temNegacao = /\bnao\b|\bnunca\b/.test(dada);
-    return gabaritos.some(gabarito => {
-        const esperada = normalizar(gabarito);
-        if (!esperada) return false;
-        const gabaritoTemNegacao = /\bnao\b|\bnunca\b/.test(esperada);
-        if (temNegacao && !gabaritoTemNegacao) return false;
-        const termos = esperada.split(' ').filter(termo => termo.length >= 1 && !palavrasVazias.has(termo));
-        if (termos.length <= 1) {
-            return dados.length === termos.length && termos.every(termo => dados.includes(termo));
-        }
-        if (dada === esperada || dada.includes(esperada)) return true;
-        return termos.every(termo => dada.includes(termo));
-    });
-}
-
-export function temaDaDuvida(arquivos: Pick<Arquivo, 'tema' | 'corpo' | 'palavras'>[], texto: string): string {
-    const termos = termosDaPergunta(texto);
-    let melhor = { tema: 'geral', acertos: 0 };
-    for (const arquivo of arquivos) {
-        const visivel = normalizar(`${arquivo.tema}\n${arquivo.palavras.join(' ')}\n${arquivo.corpo}`);
-        const acertos = termos.filter(termo => visivel.includes(termo)).length;
-        if (acertos > melhor.acertos) melhor = { tema: arquivo.tema, acertos };
-    }
-    return melhor.acertos > 0 ? melhor.tema : 'geral';
-}
-
-function separar(markdown: string): { meta: string; corpo: string; checagem?: { pergunta: string; respostas: string[] } } {
+function separar(markdown: string): { meta: string; corpo: string } {
     const textoNormalizado = markdown.replace(/\r\n/g, '\n');
     const fim = textoNormalizado.startsWith('---\n') ? textoNormalizado.indexOf('\n---\n', 4) : -1;
     const meta = fim === -1 ? '' : textoNormalizado.slice(4, fim);
-    let corpo = fim === -1 ? textoNormalizado : textoNormalizado.slice(fim + 5);
-    const inicio = corpo.indexOf(':::checagem');
-    const fechamento = corpo.indexOf(':::', inicio + 3);
-    if (inicio === -1 || fechamento === -1) return { meta, corpo: corpo.trim() };
-    const bloco = corpo.slice(inicio + ':::checagem'.length, fechamento);
-    corpo = `${corpo.slice(0, inicio)}${corpo.slice(fechamento + 3)}`.trim();
-    const pergunta = lerCampo(bloco, 'pergunta');
-    const respostas = lerCampos(bloco, 'resposta');
-    return { meta, corpo, checagem: pergunta && respostas.length > 0 ? { pergunta, respostas } : undefined };
+    const corpo = (fim === -1 ? textoNormalizado : textoNormalizado.slice(fim + 5)).trim();
+    return { meta, corpo };
 }
 
 async function lerPasta(raiz: string, pasta: Arquivo['pasta']): Promise<Arquivo[]> {
@@ -113,162 +61,218 @@ async function lerPasta(raiz: string, pasta: Arquivo['pasta']): Promise<Arquivo[
     const arquivos: Arquivo[] = [];
     for (const nome of nomes) {
         const bruto = await readFile(path.join(diretorio, nome), 'utf8');
-        const { meta, corpo, checagem } = separar(bruto);
+        const { meta, corpo } = separar(bruto);
         const tema = lerCampo(meta, 'tema');
         const fonte = lerCampo(meta, 'fonte');
         const autor = lerCampo(meta, 'autor');
         if (!tema || !fonte || !autor) continue;
-        const palavras = (lerCampo(meta, 'palavras') ?? '').split(',').map(item => item.trim()).filter(Boolean);
-        arquivos.push({ pasta, nome, tema, fonte, autor, corpo, palavras, checagem });
+        arquivos.push({ pasta, nome, tema, fonte, autor, corpo });
     }
     return arquivos;
 }
 
-async function carregar(raiz: string): Promise<{ arquivos: Arquivo[]; sobre?: { titulo: string; versao: string; autor: string; fonte: string } }> {
-    const arquivos = [
+async function carregar(raiz: string): Promise<Arquivo[]> {
+    return [
         ...(await lerPasta(raiz, 'slides')),
         ...(await lerPasta(raiz, 'manual')),
         ...(await lerPasta(raiz, 'referencias'))
     ];
-    let sobre: { titulo: string; versao: string; autor: string; fonte: string } | undefined;
+}
+
+export function entradaVaga(valor: string): boolean {
+    const partes = valor.trim().split(/\s+/).filter(Boolean);
+    return partes.length === 1;
+}
+
+export function pedidoLocal(req?: Request): boolean {
+    if (!req) return true;
+    const host = (req.headers.get('host') ?? '').split(':')[0];
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+}
+
+function clienteAceitaPergunta(ctx: { mcpReq: { envelope?: Record<string, unknown> } }): boolean {
+    const caps = ctx.mcpReq.envelope?.[CLIENT_CAPABILITIES_META_KEY];
+    return typeof caps === 'object' && caps !== null && 'elicitation' in caps;
+}
+
+function pastaRegistro(): string {
+    return path.resolve(process.cwd(), 'registro');
+}
+
+async function gravarMarkdown(arquivo: string, bloco: string): Promise<void> {
+    const pasta = pastaRegistro();
+    await mkdir(pasta, { recursive: true });
+    await appendFile(path.join(pasta, arquivo), bloco, 'utf8');
+}
+
+async function lerRegistro(arquivo: string): Promise<string> {
     try {
-        const { meta } = separar(await readFile(path.join(raiz, 'sobre.md'), 'utf8'));
-        const titulo = lerCampo(meta, 'titulo');
-        const versao = lerCampo(meta, 'versao');
-        const autor = lerCampo(meta, 'autor');
-        const fonte = lerCampo(meta, 'fonte');
-        if (titulo && versao && autor && fonte) sobre = { titulo, versao, autor, fonte };
+        return await readFile(path.join(pastaRegistro(), arquivo), 'utf8');
     } catch {
-        sobre = undefined;
+        return '';
     }
-    return { arquivos, sobre };
 }
 
-const palavrasVazias = new Set(['o', 'a', 'os', 'as', 'de', 'do', 'da', 'dos', 'das', 'que', 'em', 'no', 'na', 'nos', 'nas', 'um', 'uma', 'sobre', 'diz', 'acervo', 'para', 'por', 'com', 'como', 'qual', 'quais']);
-
-function termosDaPergunta(pergunta: string): string[] {
-    const termos = normalizar(pergunta).split(' ').map(termo => termo.replace(/[^\p{L}\p{N}]+/gu, '')).filter(termo => termo.length >= 2 && !palavrasVazias.has(termo));
-    return termos.length > 0 ? termos : [normalizar(pergunta)];
+function ultimaDuvida(bruto: string): { texto: string; horario: number } | undefined {
+    const partes = bruto.split(/^## /m).filter(Boolean);
+    const ultimo = partes.at(-1);
+    if (!ultimo) return undefined;
+    const [cabeca, ...resto] = ultimo.split('\n');
+    const horario = Date.parse(cabeca.trim());
+    const linhas = resto.map(l => l.trim()).filter(Boolean);
+    const corpo = linhas.filter(l => !l.startsWith('nome:')).join('\n').trim();
+    if (!corpo || Number.isNaN(horario)) return undefined;
+    return { texto: corpo, horario };
 }
 
-function acharTrechos(arquivos: Arquivo[], pergunta: string) {
-    const termos = termosDaPergunta(pergunta);
+function listarArquivos(arquivos: Arquivo[]): string {
+    if (arquivos.length === 0) return 'não consta no acervo';
     return arquivos
-        .map(arquivo => {
-            const visivel = normalizar(`${arquivo.tema}\n${arquivo.corpo}`);
-            const acertos = termos.filter(termo => visivel.includes(termo)).length;
-            return { arquivo, acertos };
-        })
-        .filter(item => item.acertos > 0)
-        .sort((a, b) => b.acertos - a.acertos)
-        .map(item => ({
-            arquivo: `${item.arquivo.pasta}/${item.arquivo.nome}`,
-            tema: item.arquivo.tema,
-            fonte: item.arquivo.fonte,
-            autor: item.arquivo.autor,
-            trecho: item.arquivo.corpo
-        }));
+        .map(item => `${item.pasta}/${item.nome}\ntema: ${item.tema}\nfonte: ${item.fonte}\n${item.corpo}`)
+        .join('\n\n');
 }
 
-export function criarServidor(pastaConteudo: string): McpServer {
-    const server = new McpServer({ name: 'acervo', version: '0.1.0' });
+function roteiroIdeia(ideia: string, arquivos: Arquivo[]): string {
+    const limites = arquivos.find(item => item.pasta === 'slides' && item.nome.startsWith('06-'))?.corpo
+        ?? 'Uma tool pode agir fora do chat. Quem conecta confia no servidor.';
+    return [
+        `Ideia (o modelo desenha a partir daqui): ${ideia}`,
+        '',
+        'Que tools este acervo já tem: consultar_acervo, registrar_duvida, ver_duvidas_da_sala (só no endereço local), ajudar_ideia_mcp.',
+        'Resources: slides/, manual/, referencias/.',
+        `Atalhos: ${PROMPTS.join(', ')}.`,
+        'Local: npm start em http://127.0.0.1:3000/mcp. Remoto: npm run tunel (a URL muda; ver url-atual.txt).',
+        `Limites do protocolo, do acervo:\n${limites}`,
+        'Um risco: quem conecta confia no servidor que publicou as tools.'
+    ].join('\n');
+}
+
+function perguntar(mensagem: string) {
+    return inputRequired({
+        inputRequests: {
+            detalhe: inputRequired.elicit({
+                message: mensagem,
+                requestedSchema: {
+                    type: 'object',
+                    properties: { detalhe: { type: 'string', description: 'Mais contexto, em uma frase.' } },
+                    required: ['detalhe']
+                }
+            })
+        }
+    });
+}
+
+export function criarServidor(pastaConteudo: string, opcoes: OpcoesServidor = {}): McpServer {
+    const server = new McpServer({ name: 'acervo', version: '0.2.0' });
     const raiz = path.resolve(pastaConteudo);
+    const apresentar = opcoes.apresentar ?? true;
+    const era = opcoes.era ?? 'modern';
+
+    const metaUi = (uri: string) => ({ ui: { resourceUri: uri }, 'ui/resourceUri': uri });
 
     server.registerTool(
         'consultar_acervo',
         {
-            description: 'Use para responder o que o material diz. Devolve trecho, arquivo e fonte, ou diz que não consta. Não completa com conhecimento de fora.',
-            inputSchema: z.object({ pergunta: z.string().describe('Uma frase.') })
+            description: 'Use quando o aluno tiver uma dúvida geral sobre a aula. Devolve os arquivos do acervo (pasta, tema, fonte). O modelo explica. Se não houver material: não consta no acervo.',
+            inputSchema: z.object({ pergunta: z.string().describe('A dúvida, em texto.') }),
+            _meta: metaUi('ui://acervo/consultar.html')
         },
-        async ({ pergunta }) => {
-            if (!pergunta.trim()) return erro('Informe a pergunta em uma frase.');
-            const { arquivos } = await carregar(raiz);
-            if (arquivos.length === 0) return erro('Aponte o servidor para uma pasta conteudo/ com markdown (tema, fonte, autor).');
-            const trechos = acharTrechos(arquivos, pergunta);
-            if (trechos.length === 0) {
-                const temas = [...new Set(arquivos.map(arquivo => arquivo.tema))].join(', ');
-                return texto(`não consta no acervo\nTemas: ${temas}`);
+        async ({ pergunta }, ctx) => {
+            if (!pergunta.trim()) return erro('Escreva a dúvida.');
+            const extra = acceptedContent<{ detalhe?: string }>(ctx.mcpReq.inputResponses, 'detalhe');
+            const detalhe = extra?.detalhe?.trim() ?? '';
+            const jaPerguntou = Boolean(ctx.mcpReq.inputResponses);
+            if (!jaPerguntou && entradaVaga(pergunta) && era === 'modern' && clienteAceitaPergunta(ctx)) {
+                return perguntar('Essa pergunta está curta. Em uma frase, o que você quer saber desse tema?');
             }
-            return texto(trechos.map(item => `${item.arquivo} | ${item.tema} | ${item.fonte} | ${item.autor}\n${item.trecho}`).join('\n\n'));
+            const junta = [pergunta.trim(), detalhe].filter(Boolean).join(' — ');
+            const arquivos = await carregar(raiz);
+            const corpo = arquivos.length === 0
+                ? 'não consta no acervo'
+                : listarArquivos(arquivos);
+            const dica = !jaPerguntou && entradaVaga(pergunta) && !(era === 'modern' && clienteAceitaPergunta(ctx))
+                ? '\n\nSe quiser um recorte, diga o slide ou o tema (por exemplo primitivos ou _meta).'
+                : '';
+            return texto(`${corpo}${dica}${junta !== pergunta.trim() ? `\n\n(pergunta detalhada: ${junta})` : ''}`);
         }
     );
 
     server.registerTool(
         'registrar_duvida',
         {
-            description: 'Use quando a pessoa quiser mandar uma dúvida anônima para a sala. Única tool que grava.',
-            inputSchema: z.object({ texto: z.string().describe('A dúvida, sem nome.') })
+            description: 'Usa quando o aluno quiser mandar uma dúvida para a sala. Campo duvida obrigatório; nome opcional. Sem IP.',
+            inputSchema: z.object({
+                duvida: z.string().describe('A dúvida.'),
+                nome: z.string().optional().describe('Nome, se a pessoa quiser.')
+            }),
+            _meta: metaUi('ui://acervo/duvida.html')
         },
-        async ({ texto: duvida }) => {
-            if (!duvida.trim()) return erro('Escreva a dúvida em uma frase, sem nome.');
+        async ({ duvida, nome }) => {
+            if (!duvida.trim()) return erro('Escreva a dúvida.');
             const agora = Date.now();
-            const ultima = duvidas.at(-1);
-            if (ultima && ultima.texto === duvida.trim() && agora - Date.parse(ultima.horario) < 5000) {
+            const horario = new Date(agora).toISOString();
+            const textoDuvida = duvida.trim();
+            const bruto = await lerRegistro('duvidas.md');
+            const ultima = ultimaDuvida(bruto);
+            if (ultima && ultima.texto === textoDuvida && agora - ultima.horario < 5000) {
                 return texto('Dúvida já registrada.');
             }
-            duvidas.push({ texto: duvida.trim(), horario: new Date(agora).toISOString() });
-            return texto('Dúvida registrada sem identificação.');
+            const quem = nome?.trim();
+            const bloco = `\n## ${horario}\n${quem ? `nome: ${quem}\n` : ''}${textoDuvida}\n`;
+            await gravarMarkdown('duvidas.md', bloco);
+            console.log('');
+            console.log('========');
+            console.log(`DUVIDA ${horario}${quem ? `  nome=${quem}` : ''}`);
+            console.log(textoDuvida);
+            console.log('========');
+            console.log('');
+            return texto('Dúvida registrada para a sala.');
         }
     );
 
-    server.registerTool(
-        'ver_duvidas_da_sala',
-        {
-            description: 'Use só quando quem fala disser que está apresentando. Devolve as dúvidas da sala agrupadas por assunto. Não grava.',
-            inputSchema: z.object({})
-        },
-        async () => {
-            if (duvidas.length === 0) return texto('A sala ainda não registrou dúvida.');
-            const { arquivos } = await carregar(raiz);
-            const grupos = new Map<string, Duvida[]>();
-            for (const duvida of duvidas) {
-                const tema = temaDaDuvida(arquivos, duvida.texto);
-                grupos.set(tema, [...(grupos.get(tema) ?? []), duvida]);
+    if (apresentar) {
+        server.registerTool(
+            'ver_duvidas_da_sala',
+            {
+                description: 'Use só no endereço local, para quem apresenta. Lê as dúvidas gravadas. Não grava.',
+                inputSchema: z.object({})
+            },
+            async () => {
+                const bruto = (await lerRegistro('duvidas.md')).trim();
+                if (!bruto) return texto('A sala ainda não registrou dúvida.');
+                return texto(bruto);
             }
-            const saida = [...grupos.entries()].map(([tema, itens]) => `${tema}\n${itens.map(item => `- ${item.horario} ${item.texto}`).join('\n')}`).join('\n\n');
-            return texto(saida);
-        }
-    );
+        );
+    }
 
     server.registerTool(
-        'checar_entendimento',
+        'ajudar_ideia_mcp',
         {
-            description: 'Use para perguntar e conferir estudo. Na primeira chamada devolve só a pergunta. Na segunda, diga se a resposta fecha com o acervo. O gabarito não volta para o modelo.',
+            description: 'Use quando o aluno tiver uma ideia de servidor MCP. Devolve um roteiro do acervo. Grava a ideia só se gravar=true.',
             inputSchema: z.object({
-                id: z.string().optional().describe('Identificador devolvido na primeira chamada.'),
-                resposta: z.string().optional().describe('O que a pessoa respondeu.')
+                ideia: z.string().describe('A ideia, em texto.'),
+                gravar: z.boolean().optional().describe('true só se o aluno concordar em guardar.')
             })
         },
-        async ({ id, resposta }) => {
-            if (resposta !== undefined && !id) return erro('Chame de novo sem resposta para receber uma pergunta.');
-            if (id && resposta !== undefined) {
-                const guardada = checagens.get(id);
-                if (!guardada) return erro('Essa checagem expirou. Peça outra pergunta.');
-                const certo = respostaCerta(resposta, guardada.respostas);
-                return texto(certo ? 'certo' : `errado\nReleia ${guardada.arquivo}`);
+        async ({ ideia, gravar }, ctx) => {
+            if (!ideia.trim()) return erro('Escreva a ideia.');
+            const extra = acceptedContent<{ detalhe?: string }>(ctx.mcpReq.inputResponses, 'detalhe');
+            const detalhe = extra?.detalhe?.trim() ?? '';
+            const jaPerguntou = Boolean(ctx.mcpReq.inputResponses);
+            if (!jaPerguntou && entradaVaga(ideia) && era === 'modern' && clienteAceitaPergunta(ctx)) {
+                return perguntar('Essa ideia está curta. Em uma frase, o que o servidor faria?');
             }
-            const { arquivos } = await carregar(raiz);
-            const usadas = new Set([...checagens.values()].map(item => item.pergunta));
-            const comPergunta = arquivos.filter(arquivo => arquivo.checagem);
-            const candidata = comPergunta.find(arquivo => !usadas.has(arquivo.checagem?.pergunta)) ?? comPergunta[0];
-            if (!candidata?.checagem) return erro('O acervo não tem pergunta de checagem.');
-            const novoId = randomUUID();
-            checagens.set(novoId, { pergunta: candidata.checagem.pergunta, respostas: candidata.checagem.respostas, arquivo: `${candidata.pasta}/${candidata.nome}` });
-            return texto(`${novoId}\n${candidata.checagem.pergunta}`);
-        }
-    );
-
-    server.registerTool(
-        'sobre_este_acervo',
-        {
-            description: 'Use para dizer título, autor, versão e a lista do que está carregado, inclusive os atalhos. Não grava.',
-            inputSchema: z.object({})
-        },
-        async () => {
-            const { arquivos, sobre } = await carregar(raiz);
-            if (!sobre) return erro('Falta conteudo/sobre.md com titulo e versao.');
-            const lista = arquivos.map(arquivo => `${arquivo.pasta}/${arquivo.nome} | ${arquivo.tema}`).join('\n');
-            return texto(`${sobre.titulo}\n${sobre.versao}\n${sobre.autor}\n${sobre.fonte}\n${lista}\n${PROMPTS.join(', ')}`);
+            const junta = [ideia.trim(), detalhe].filter(Boolean).join(' — ');
+            const arquivos = await carregar(raiz);
+            let corpo = roteiroIdeia(junta, arquivos);
+            if (!jaPerguntou && entradaVaga(ideia) && !(era === 'modern' && clienteAceitaPergunta(ctx))) {
+                corpo += '\n\nSe quiser um recorte, diga se é local ou remoto e que dado o servidor guarda.';
+            }
+            if (gravar) {
+                await gravarMarkdown('ideias.md', `\n## ${new Date().toISOString()}\n${junta}\n`);
+                corpo += '\n\nIdeia guardada em registro/ideias.md.';
+            }
+            return texto(corpo);
         }
     );
 
@@ -277,7 +281,7 @@ export function criarServidor(pastaConteudo: string): McpServer {
             pasta,
             new ResourceTemplate(`acervo://${pasta}/{arquivo}`, {
                 list: async () => {
-                    const { arquivos } = await carregar(raiz);
+                    const arquivos = await carregar(raiz);
                     return {
                         resources: arquivos
                             .filter(arquivo => arquivo.pasta === pasta)
@@ -293,7 +297,7 @@ export function criarServidor(pastaConteudo: string): McpServer {
                 if (pedido !== base && !pedido.startsWith(base + path.sep)) {
                     throw new Error('Esse arquivo não está no acervo.');
                 }
-                const { arquivos } = await carregar(raiz);
+                const arquivos = await carregar(raiz);
                 const arquivo = arquivos.find(item => item.pasta === pasta && item.nome === nome);
                 if (!arquivo) throw new Error('Esse arquivo não está no acervo.');
                 return { contents: [{ uri: uri.href, mimeType: 'text/markdown', text: arquivo.corpo }] };
@@ -305,15 +309,28 @@ export function criarServidor(pastaConteudo: string): McpServer {
     registrarFamilia('manual', 'Um passo do manual.');
     registrarFamilia('referencias', 'Uma referência do acervo.');
 
+    server.registerResource(
+        'janela-consultar',
+        'ui://acervo/consultar.html',
+        { description: 'Janela simples de consulta (experimento).', mimeType: MIME_APP },
+        async uri => ({ contents: [{ uri: uri.href, mimeType: MIME_APP, text: htmlConsultar }] })
+    );
+    server.registerResource(
+        'janela-duvida',
+        'ui://acervo/duvida.html',
+        { description: 'Janela simples de dúvida (experimento).', mimeType: MIME_APP },
+        async uri => ({ contents: [{ uri: uri.href, mimeType: MIME_APP, text: htmlDuvida }] })
+    );
+
     server.registerPrompt(
         'comece-aqui',
-        { description: 'Ponto de entrada; explica o que há no acervo e lista os outros atalhos.' },
+        { description: 'O que é a aula e quando usar cada tool e atalho.' },
         () => ({
             messages: [{
                 role: 'user',
                 content: {
                     type: 'text',
-                    text: 'Use as tools deste servidor e nada de fora dele. Chame sobre_este_acervo e conte, em linguagem leiga, o que este acervo é, de quem é e o que está carregado. Depois liste os atalhos: explica-como-se-eu-tivesse-5-anos, mostra-o-slide, me-guia-na-instalacao, prepara-minha-prova, onde-posso-ler-mais. Diga que dúvida da plateia entra por registrar_duvida e que ver_duvidas_da_sala é só de quem está apresentando.'
+                    text: `Esta aula usa um acervo MCP. O servidor entrega material e guarda o que a sala produz; você explica e discute. Chame consultar_acervo para ver o que está carregado. Tools: consultar_acervo (dúvida geral; o modelo explica o material), registrar_duvida (duvida obrigatória, nome opcional; vai para a sala), ver_duvidas_da_sala (só no endereço local, para quem apresenta), ajudar_ideia_mcp (ideia de servidor; grave só se o aluno concordar). Atalhos: comece-aqui, explica-como-se-eu-tivesse-5-anos (versão engraçada), mostra-o-slide (o aluno diz o slide em texto), me-guia-na-instalacao (pegar este projeto, trocar conteudo/, rodar), onde-posso-ler-mais (só referencias/). Não invente tool que não listou.`
                 }
             }]
         })
@@ -330,7 +347,7 @@ export function criarServidor(pastaConteudo: string): McpServer {
                 role: 'user',
                 content: {
                     type: 'text',
-                    text: `Explique ${assunto || ''} como para uma criança de 5 anos, com uma analogia. Chame consultar_acervo com esse assunto. Use só o trecho devolvido. Se a tool disser que não consta, repita isso e não complete com conhecimento seu. Se assunto vier vazio, pergunte qual tema do acervo a pessoa quer.`
+                    text: `Explique ${assunto || 'o tema da aula'} como para uma criança de 5 anos, com uma analogia. Chame consultar_acervo. Use o material devolvido. Se não constar, diga que não consta e não complete com conhecimento seu. Se assunto vier vazio, pergunte qual tema.`
                 }
             }]
         })
@@ -339,15 +356,15 @@ export function criarServidor(pastaConteudo: string): McpServer {
     server.registerPrompt(
         'mostra-o-slide',
         {
-            description: 'Conta o slide N em voz de apresentação.',
-            argsSchema: z.object({ numero: z.number() })
+            description: 'Apresenta o slide que o aluno pediu, em texto livre.',
+            argsSchema: z.object({ slide: z.string().describe('Número, nome ou o que o aluno digitou.') })
         },
-        ({ numero }) => ({
+        ({ slide }) => ({
             messages: [{
                 role: 'user',
                 content: {
                     type: 'text',
-                    text: `Abra o resource do slide ${numero} e apresente o conteúdo em voz alta, como quem fala para a turma, sem ler o frontmatter. Se o resource não existir, diga o erro da tool e pergunte outro número.`
+                    text: `O aluno pediu o slide assim: "${slide}". Abra o resource em slides/ que corresponda (01-problema, 02-ideia, 03-arquitetura, 04-primitivos, 05-evolucao, 06-limites). "4", "04", "quatro" e "o das peças" apontam para 04-primitivos. Apresente o conteúdo em voz de aula, sem ler o frontmatter. Se não achar, diga e peça outro jeito de identificar o slide.`
                 }
             }]
         })
@@ -356,32 +373,15 @@ export function criarServidor(pastaConteudo: string): McpServer {
     server.registerPrompt(
         'me-guia-na-instalacao',
         {
-            description: 'Um passo do manual por vez.',
-            argsSchema: z.object({ passo: z.number().optional() })
+            description: 'Como pegar este projeto, trocar conteudo/ e rodar.',
+            argsSchema: z.object({ passo: z.string().optional().describe('O que o aluno já fez, em texto.') })
         },
         ({ passo }) => ({
             messages: [{
                 role: 'user',
                 content: {
                     type: 'text',
-                    text: `Leia o resource do manual no passo ${passo ?? 1}. Mostre só esse passo, com arquivo e fonte. Termine perguntando se deu certo. Não antecipe o passo seguinte.`
-                }
-            }]
-        })
-    );
-
-    server.registerPrompt(
-        'prepara-minha-prova',
-        {
-            description: 'Estudo a partir do acervo, com checagem sem gabarito.',
-            argsSchema: z.object({ foco: z.string().optional() })
-        },
-        ({ foco }) => ({
-            messages: [{
-                role: 'user',
-                content: {
-                    type: 'text',
-                    text: `Monte um estudo curto sobre ${foco || 'o acervo inteiro'}. Use consultar_acervo para os pontos. Depois chame checar_entendimento sem resposta, faça a pergunta à pessoa e só então chame de novo com a resposta dela. Nunca mostre o gabarito. Se não constar, diga que não consta.`
+                    text: `Guie o aluno a usar este mesmo servidor com o material dele. Passos: clonar ou copiar o projeto; trocar a pasta conteudo/ pelos markdown dele (tema, fonte, autor); npm install; npm start em http://127.0.0.1:3000/mcp; no Cursor apontar .cursor/mcp.json. O aluno descreveu o passo atual assim: "${passo || 'ainda não começou'}". Leia os resources em manual/ se precisar. Mostre só o próximo passo e pergunte se deu certo.`
                 }
             }]
         })
@@ -390,7 +390,7 @@ export function criarServidor(pastaConteudo: string): McpServer {
     server.registerPrompt(
         'onde-posso-ler-mais',
         {
-            description: 'Referências do acervo e o motivo de cada uma.',
+            description: 'Referências do acervo.',
             argsSchema: z.object({ assunto: z.string().optional() })
         },
         ({ assunto }) => ({
@@ -398,7 +398,7 @@ export function criarServidor(pastaConteudo: string): McpServer {
                 role: 'user',
                 content: {
                     type: 'text',
-                    text: `Liste referências do acervo sobre ${assunto || ''}. Leia só resources em referencias/. Para cada uma, diga o motivo em uma frase usando o próprio texto, com arquivo e fonte. Se não houver, diga que não consta. Se assunto vier vazio, liste todas.`
+                    text: `Liste só resources em referencias/ sobre ${assunto || 'o acervo'}. Para cada uma, uma frase do próprio texto, com arquivo e fonte. Se não houver, não consta. Se assunto vier vazio, liste todas.`
                 }
             }]
         })

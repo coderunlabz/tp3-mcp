@@ -4,4 +4,4 @@ fonte: esqueleto do manual do TP3
 autor: Nicolas
 ---
 
-Para alguém de fora, pare o `npm start` e rode `npm run tunel` numa janela própria (`powershell -File scripts/manter-aberto.ps1`). O comando imprime uma URL `https://` que termina em `/mcp` e grava o mesmo em `url-atual.txt`. Essa URL muda se o túnel reiniciar. Chat na nuvem, como Claude e Perplexity, usa essa URL. Sem login neste servidor. Reiniciar o Node zera as dúvidas da sala.
+Para alguém de fora, pare o `npm start` e rode `npm run tunel` numa janela própria (`powershell -File scripts/manter-aberto.ps1`). A URL em `url-atual.txt` termina em `/mcp` e muda se o túnel reiniciar. Pelo túnel a tool `ver_duvidas_da_sala` não aparece. Chat na nuvem usa essa URL, auth None. Dúvidas ficam em `registro/` (não vão para o git).

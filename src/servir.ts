@@ -4,7 +4,7 @@ import path from 'node:path';
 import { hostHeaderValidation, originValidation, toNodeHandler } from '@modelcontextprotocol/node';
 import { createMcpHandler } from '@modelcontextprotocol/server';
 
-import { criarServidor } from './criarServidor.ts';
+import { criarServidor, pedidoLocal } from './criarServidor.ts';
 import { alvoDoPedido, clienteDoPedido, mensagensDoCorpo, registrarChamadas, respostaTemErro } from './logChamada.ts';
 
 type Opcoes = {
@@ -17,7 +17,10 @@ export function servir(opcoes: Opcoes = {}): void {
     const pasta = opcoes.pasta ?? process.env.CONTEUDO ?? path.join(process.cwd(), 'conteudo');
     const porta = opcoes.porta ?? Number(process.env.PORT ?? 3000);
     const arquivoLog = process.env.LOG_ARQUIVO?.trim();
-    const mcp = createMcpHandler(() => criarServidor(pasta));
+    const mcp = createMcpHandler(ctx => criarServidor(pasta, {
+        apresentar: pedidoLocal(ctx.requestInfo),
+        era: ctx.era
+    }));
     const nodeHandler = toNodeHandler({
         fetch: async (pedido, extras) => {
             const inicio = Date.now();
