@@ -83,8 +83,8 @@ console.log('tunel tools/list', bList.slice(0, 800));
 const bCall = await rpcTunel('tools/call', { name: 'ver_duvidas_da_sala', arguments: {} }, 'ver_duvidas_da_sala');
 console.log('tunel ver_duvidas', bCall.slice(0, 800));
 
-const arquivo = await readFile(path.join(process.cwd(), 'registro', 'duvidas.md'), 'utf8');
-console.log('arquivo duvidas.md\n', arquivo);
+const arquivo = await readFile(path.join(process.cwd(), 'registro', 'duvidas.jsonl'), 'utf8');
+console.log('arquivo duvidas.jsonl\n', arquivo);
 
 const vago = await (await cliente(local)).callTool({ name: 'consultar_acervo', arguments: { pergunta: 'MCP' } });
 console.log('consultar vago', JSON.stringify(vago).slice(0, 300));

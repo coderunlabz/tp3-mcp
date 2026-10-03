@@ -12,7 +12,9 @@
     "listar": "node --env-file-if-exists=.env --experimental-strip-types scripts/listar.ts",
     "verificar": "node --env-file-if-exists=.env --experimental-strip-types scripts/verificar.ts",
     "prova": "node --env-file-if-exists=.env --experimental-strip-types scripts/prova-ajustes.ts",
-    "carga": "node --env-file-if-exists=.env --experimental-strip-types scripts/carga.ts"
+    "p6": "node --env-file-if-exists=.env --experimental-strip-types scripts/p6-ensaio.ts",
+    "carga": "node --env-file-if-exists=.env --experimental-strip-types scripts/carga.ts",
+    "arquivar:duvidas": "node --env-file-if-exists=.env --experimental-strip-types scripts/arquivar-duvidas.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "2.1.0",

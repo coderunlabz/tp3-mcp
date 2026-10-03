@@ -1,20 +1,21 @@
-# Estado — 02/10/2026
+# Estado — 03/10/2026
 
-Repo privado `coderunlabz/tp3-mcp`, `main`. Seminário 06/10. Numeração de `docs/pipeline/`.
+Repo privado `coderunlabz/tp3-mcp`. Seminário 06/10.
 
-## Pipeline
+## Acervo
 
-P0 especificação · P1 contrato · P2 servidor local · P3 conteúdo · P4 sala e checagem (substituída neste redesenho) · P5 cliente real · P6 provas.
+O servidor entrega material e grava a sala. O modelo explica, em texto. Sem HTML, sem busca por palavra, sem quiz.
 
-## Acervo v2 (02/10)
+`registrar_duvida` só com pedido de envio ao apresentador. Ideia só grava com `gravar=true`.
 
-O servidor entrega material e grava a sala. O modelo explica. Sem busca por palavra, sem `checar_entendimento`, sem `prepara-minha-prova`.
+## Feito nesta leva
 
-Dúvidas em `registro/duvidas.md`. Túnel rápido. VPS fora.
+- Resources `ui://` e código das janelas removidos.
+- Descrições das tools alinhadas à intenção (estudo vs envio; consentimento da ideia).
+- `npm run arquivar:duvidas` (servidor parado; não executado nos registros reais nesta leva).
 
 ## Não feito de propósito
 
-- Conta Cloudflare / abrir o repo
-- Checagens nos slides
-- Tool de painel
-- Pacotes além do P0
+- Reiniciar a porta 3000 (combinar com Nicolas)
+- Chat real GPT/Perplexity para a intenção
+- Push/merge, abrir o repo, reescrever slides/manual

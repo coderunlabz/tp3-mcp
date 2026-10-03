@@ -9,11 +9,12 @@ O acervo é material de aula no chat. O servidor entrega arquivos e guarda o que
 ## Arquitetura
 
 - `src/criarServidor.ts` — 4 tools, resources, atalhos
-- `src/servir.ts` — HTTP local; `ver_duvidas_da_sala` só se o `Host` for localhost
-- `src/janelas.ts` — HTML experimental (MCP Apps) em duas tools
-- `scripts/tunel.ts` — túnel rápido; `url-atual.txt`
+- `src/servir.ts` — HTTP local; `ver_duvidas_da_sala` só em loopback sem headers de proxy
+- `src/registro.ts` — `duvidas.jsonl` com fila; `npm run arquivar:duvidas` move jsonl/md para `registro/historico/` (gitignore)
+- `src/logChamada.ts` — ok / erro-http / erro-jsonrpc / erro-tool / incompleto
+- `scripts/tunel.ts` — túnel rápido; `url-atual.txt` depois do MCP initialize
 - `conteudo/` — slides, manual, referências
-- `registro/` — dúvidas e ideias (gitignore; fora quando o repo abrir)
+- `registro/` — dúvidas, ideias e logs (gitignore)
 
 Tools: `consultar_acervo`, `registrar_duvida`, `ver_duvidas_da_sala` (local), `ajudar_ideia_mcp`.
 

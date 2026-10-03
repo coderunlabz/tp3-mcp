@@ -5,7 +5,16 @@ import { hostHeaderValidation, originValidation, toNodeHandler } from '@modelcon
 import { createMcpHandler } from '@modelcontextprotocol/server';
 
 import { criarServidor, pedidoLocal } from './criarServidor.ts';
-import { alvoDoPedido, clienteDoPedido, mensagensDoCorpo, registrarChamadas, respostaTemErro } from './logChamada.ts';
+import {
+    alvoDoPedido,
+    arquivoLogPadrao,
+    clienteDoPedido,
+    idDoPedido,
+    mensagensDoCorpo,
+    origemDoPedido,
+    registrarChamadas
+} from './logChamada.ts';
+import { chamadaDeObservacao, encaminharEObservar } from './observarResposta.ts';
 
 type Opcoes = {
     pasta?: string;
@@ -13,14 +22,26 @@ type Opcoes = {
     hostsExtras?: string[];
 };
 
-export function servir(opcoes: Opcoes = {}): void {
+const hostsDinamicos = new Set<string>();
+
+export function autorizarHost(hostname: string): void {
+    const limpo = hostname.trim().replace(/^https?:\/\//, '').replace(/\/mcp\/?$/, '');
+    if (limpo) hostsDinamicos.add(limpo);
+}
+
+export function hostsAutorizados(extrasFixos: string[] = []): string[] {
+    const env = (process.env.HOSTS ?? '').split(',').map(item => item.trim()).filter(Boolean);
+    return [...new Set(['localhost', '127.0.0.1', '[::1]', ...extrasFixos, ...env, ...hostsDinamicos])];
+}
+
+export function servir(opcoes: Opcoes = {}) {
     const pasta = opcoes.pasta ?? process.env.CONTEUDO ?? path.join(process.cwd(), 'conteudo');
     const porta = opcoes.porta ?? Number(process.env.PORT ?? 3000);
-    const arquivoLog = process.env.LOG_ARQUIVO?.trim();
+    const arquivoLog = arquivoLogPadrao();
     const mcp = createMcpHandler(ctx => criarServidor(pasta, {
         apresentar: pedidoLocal(ctx.requestInfo),
         era: ctx.era
-    }));
+    }), { responseMode: 'json' });
     const nodeHandler = toNodeHandler({
         fetch: async (pedido, extras) => {
             const inicio = Date.now();
@@ -35,44 +56,35 @@ export function servir(opcoes: Opcoes = {}): void {
                 }
             }
             const resposta = await mcp.fetch(pedido, extras);
-            const tipo = resposta.headers.get('content-type') ?? '';
-            let corpoResposta = '';
-            if (tipo.includes('json') && !tipo.includes('event-stream')) {
+            const bases = mensagens
+                .filter(mensagem => typeof mensagem.method === 'string')
+                .map(mensagem => {
+                    const quem = clienteDoPedido(mensagem, agente);
+                    return {
+                        horario,
+                        cliente: quem.cliente,
+                        versao: quem.versao,
+                        metodo: String(mensagem.method),
+                        alvo: alvoDoPedido(mensagem),
+                        origem: origemDoPedido(mensagem),
+                        id: idDoPedido(mensagem),
+                        ms: Date.now() - inicio
+                    };
+                });
+            return encaminharEObservar(resposta, async (corpo, tipo, ok) => {
+                if (bases.length === 0) return;
+                const chamadas = bases.map(base => chamadaDeObservacao(base, corpo, tipo, ok));
                 try {
-                    corpoResposta = await resposta.clone().text();
-                } catch {
-                    corpoResposta = '';
+                    await registrarChamadas(chamadas, arquivoLog);
+                } catch (erro) {
+                    console.error(`falha no log: ${erro instanceof Error ? erro.message : erro}`);
                 }
-            }
-            const resultado = respostaTemErro(corpoResposta, resposta.ok) ? 'erro' : 'ok';
-            const ms = Date.now() - inicio;
-            const chamadas = mensagens.length > 0
-                ? mensagens
-                    .filter(mensagem => typeof mensagem.method === 'string')
-                    .map(mensagem => {
-                        const quem = clienteDoPedido(mensagem, agente);
-                        return {
-                            horario,
-                            cliente: quem.cliente,
-                            versao: quem.versao,
-                            metodo: String(mensagem.method),
-                            alvo: alvoDoPedido(mensagem),
-                            resultado,
-                            ms
-                        };
-                    })
-                : [];
-            if (chamadas.length > 0) void registrarChamadas(chamadas, arquivoLog);
-            return resposta;
+            });
         }
     });
 
-    createServer((req, res) => {
-        const extras = [
-            ...(opcoes.hostsExtras ?? []),
-            ...(process.env.HOSTS ?? '').split(',').map(item => item.trim()).filter(Boolean)
-        ];
-        const hosts = ['localhost', '127.0.0.1', '[::1]', ...extras];
+    return createServer((req, res) => {
+        const hosts = hostsAutorizados(opcoes.hostsExtras ?? []);
         const validateHost = hostHeaderValidation(hosts);
         const validateOrigin = originValidation(hosts);
         if (!validateHost(req, res) || !validateOrigin(req, res)) return;
@@ -80,5 +92,7 @@ export function servir(opcoes: Opcoes = {}): void {
     }).listen(porta, '127.0.0.1', () => {
         console.log(`local em http://127.0.0.1:${porta}/mcp`);
         if (arquivoLog) console.log(`log JSON em ${arquivoLog}`);
+        else console.log('log só no terminal (LOG_ARQUIVO=off)');
+        console.log('Respostas MCP: JSON (responseMode json). SSE só em fluxos de escuta; observação não bloqueia o encaminhamento.');
     });
 }
