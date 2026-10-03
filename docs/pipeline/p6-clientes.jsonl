@@ -1,6 +1,0 @@
-{"horario":"2026-10-01T19:39:46.195Z","cliente":"demo-claude","versao":"0.1.0","metodo":"initialize","alvo":"-","resultado":"ok","ms":280}
-{"horario":"2026-10-01T19:39:46.549Z","cliente":"node","versao":"-","metodo":"notifications/initialized","alvo":"-","resultado":"ok","ms":134}
-{"horario":"2026-10-01T19:39:46.752Z","cliente":"node","versao":"-","metodo":"tools/call","alvo":"sobre_este_acervo","resultado":"ok","ms":120}
-{"horario":"2026-10-01T19:39:47.048Z","cliente":"demo-perplexity","versao":"0.2.0","metodo":"initialize","alvo":"-","resultado":"ok","ms":17}
-{"horario":"2026-10-01T19:39:47.077Z","cliente":"node","versao":"-","metodo":"notifications/initialized","alvo":"-","resultado":"ok","ms":8}
-{"horario":"2026-10-01T19:39:47.103Z","cliente":"node","versao":"-","metodo":"tools/call","alvo":"sobre_este_acervo","resultado":"ok","ms":7}

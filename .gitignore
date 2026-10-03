@@ -6,3 +6,5 @@ tunel.out.log
 *.log
 chamadas.jsonl
 registro/
+docs/
+url-atual.txt
