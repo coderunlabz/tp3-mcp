@@ -1,7 +1,7 @@
 ---
 tema: instalacao
-fonte: esqueleto do manual do TP3
+fonte: README do projeto
 autor: Nicolas
 ---
 
-Para alguém de fora, pare o `npm start` e rode `npm run tunel` numa janela própria (`powershell -File scripts/manter-aberto.ps1`). A URL em `url-atual.txt` termina em `/mcp` e muda se o túnel reiniciar. Pelo túnel a tool `ver_duvidas_da_sala` não aparece. Chat na nuvem usa essa URL, auth None. Dúvidas ficam em `registro/` (não vão para o git).
+Para alguém de fora usar o servidor, rode npm run tunel. Esse comando já sobe o servidor e o túnel, então não rode npm start junto. A URL pública termina em /mcp, aparece no terminal e fica em url-atual.txt; ela muda se o cloudflared reiniciar. Pelo túnel saem só as 3 tools públicas. O túnel gratuito não tem garantia de disponibilidade. Chats na nuvem usam essa URL, sem autenticação.

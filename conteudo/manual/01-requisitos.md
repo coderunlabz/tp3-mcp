@@ -1,7 +1,7 @@
 ---
 tema: instalacao
-fonte: esqueleto do manual do TP3
+fonte: README do projeto
 autor: Nicolas
 ---
 
-Para subir este acervo é preciso Node.js 20 ou mais novo e a pasta `conteudo/` ao lado do código. Outro aluno troca essa pasta pela dele e mantém o mesmo servidor.
+Para rodar este servidor é preciso Node.js 22.9 ou superior (os scripts usam recursos que o Node 20 não tem), npm e git. Para compartilhar com outras pessoas é preciso também o cloudflared, sem conta e sem token. O acervo é a pasta conteudo/ ao lado do código: outra pessoa troca essa pasta pela dela e mantém o mesmo servidor.

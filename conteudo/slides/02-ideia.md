@@ -1,10 +1,10 @@
 ---
 tema: ideia
-fonte: conteúdo-base do seminário, 29/09/2026
+fonte: modelcontextprotocol.io; anúncio do MCP, Anthropic, 25/11/2024
 autor: Nicolas
-palavras: tomada, aparelho, padrao
+palavras: tomada, aparelho, padrao, usb-c
 ---
 
-O MCP resolve o problema N vezes M com um padrão único de conexão, no espírito de uma tomada. Em vez de cada chat integrar cada ferramenta do zero, o servidor é a tomada e cada chat é um aparelho que encaixa nela.
+O MCP troca N vezes M por N mais M: um protocolo aberto entre a aplicação de IA e o sistema. A documentação oficial o compara a uma porta USB-C para aplicações de IA. O servidor é a tomada e cada chat é um aparelho que encaixa nela. Escreve-se o servidor uma vez e qualquer cliente compatível usa. O padrão tem especificação pública e SDKs oficiais, e foi criado por David Soria Parra e Justin Spahr-Summers, da Anthropic.
 
-MCP não cabe nas categorias antigas de um PDF de aula. Se for obrigatório escolher uma, a mais próxima é Agentes. O enquadramento melhor é uma categoria própria: Interoperabilidade. É um protocolo transversal, como HTTP ou LSP.
+Em área, o MCP não cabe bem nas categorias de uma lista de aula. É um protocolo transversal, como HTTP ou LSP: integração de aplicações de IA com sistemas externos. A categoria mais próxima é Agentes.

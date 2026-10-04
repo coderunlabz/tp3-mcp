@@ -1,7 +1,7 @@
 ---
 tema: limites
-fonte: conteúdo-base do seminário, 29/09/2026
+fonte: especificação MCP 2026-07-28; ensaio da demonstração
 autor: Nicolas
 ---
 
-Uma tool pode agir fora do chat. Quem conecta confia no servidor que a publicou. Chamada demais custa tempo e dinheiro. MCP Apps pode não existir no cliente da turma; nesta demo a janela HTML é só um experimento em duas tools, e o texto sempre sai também.
+O MCP padroniza a conexão, mas não resolve confiança, segurança nem compatibilidade. Uma tool pode agir fora do chat, e quem conecta confia no servidor que a publicou. A segurança é responsabilidade do servidor. Nem todo cliente suporta todos os recursos: resources, prompts e perguntas do servidor variam de chat para chat. Chamadas demais custam tempo e dinheiro. Esta demonstração roda por um túnel temporário, sem garantia de disponibilidade e sem autenticação.
